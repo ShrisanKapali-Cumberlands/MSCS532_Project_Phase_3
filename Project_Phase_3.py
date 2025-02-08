@@ -5,10 +5,15 @@
 ## Shrisan kapali - 005032249
 ## *************************************************************** ##
 
+import random
+import time
+
 ## Dyanamic Inventory Management System
 ## This program will allow end users to perform CRUD operations on products and categories
 from datetime import datetime
-import time
+from functools import lru_cache
+
+import matplotlib.pyplot as plt
 
 
 # Defining the class Category
@@ -99,6 +104,8 @@ class Inventory:
     def __init__(self):
         self.categories = {}
         self.products = {}
+        # Implementing manual caching
+        self.memoized_search = {}
 
     ## ******************************************** ##
     # Inventory Category Management
@@ -120,6 +127,8 @@ class Inventory:
 
         # Add the category using category_id as key
         self.categories[category_id] = Category(category_id, name, status)
+        # Clear manual cache on each new addition
+        self.clear_cache()
 
     # Update Category name or status
     def update_category(self, cagetory_id: int, name: str = None, status: bool = None):
@@ -131,6 +140,8 @@ class Inventory:
 
         # Use category update method to update the category details
         self.categories[cagetory_id].update(name, status)
+        # Clear manual cache on each update
+        self.clear_cache()
 
     # Delete existing category
     def delete_category(self, cagetory_id: int):
@@ -141,14 +152,40 @@ class Inventory:
             )
 
         del self.categories[cagetory_id]
+        # Clear manual cache on each update
+        self.clear_cache()
 
+    # Adding lru automatic caching as well
     # A function to search category by name
+    @lru_cache(maxsize=20000)
     def search_category_by_name(self, name: str):
         return [
             category
             for category in self.categories.values()
             if name.lower() in category.name.lower()
         ]
+
+    # Without cache
+    def search_category_by_name_no_cache(self, name: str):
+        return [
+            category
+            for category in self.categories.values()
+            if name.lower() in category.name.lower()
+        ]
+
+    # Manual caching
+    def search_category_by_name_memo(self, name: str):
+        # if the name is already in cache, return from cache
+        if name in self.memoized_search:
+            return self.memoized_search[name]
+        result = [
+            category
+            for category in self.categories.values()
+            if name.lower() in category.name.lower()
+        ]
+        # Add this result to cache for faster retrieval
+        self.memoized_search[name] = result
+        return result
 
     ## ******************************************** ##
     # Inventory Product Management
@@ -179,6 +216,8 @@ class Inventory:
         self.products[product_id] = Product(
             product_id, name, price, description, category, quantity
         )
+        # Clear manual cache on each new addition
+        self.clear_cache()
 
     # Update the existing product details
     def update_product(
@@ -206,6 +245,8 @@ class Inventory:
 
         # Finally call in product update function to update the values
         product.update(name, price, description, category, quantity)
+        # Clear manual cache on each new update
+        self.clear_cache()
 
     # Increase product quantity by quantity
     def increase_product_quantity(self, product_id: int, quantity: int):
@@ -213,6 +254,8 @@ class Inventory:
             raise ValueError("Unable to find the product using passed in id")
 
         self.products[product_id].increaseQuantity(quantity)
+        # Clear manual cache on each new update
+        self.clear_cache()
 
     # Decrease product quantity by quantity
     def decrease_product_quantity(self, product_id: int, quantity: int):
@@ -220,8 +263,11 @@ class Inventory:
             raise ValueError("Unable to find the product using passed in id")
 
         self.products[product_id].decreaseQuantity(quantity)
+        # Clear manual cache on each new update
+        self.clear_cache()
 
     # View product price history
+    @lru_cache(maxsize=20000)  # Adding the cache
     def get_product_price_history(self, product_id: int):
         if product_id not in self.products:
             raise ValueError("Unable to find the product using passed in id")
@@ -229,6 +275,14 @@ class Inventory:
         return self.products[product_id].price_history
 
     # Search product by name
+    def search_product_by_name_no_cache(self, name: str):
+        return [
+            product
+            for product in self.products.values()
+            if name.lower() in product.name.lower()
+        ]
+
+    @lru_cache(maxsize=20000)  # Adding the cache
     def search_product_by_name(self, name: str):
         return [
             product
@@ -236,7 +290,31 @@ class Inventory:
             if name.lower() in product.name.lower()
         ]
 
+    # Manual cache memory search
+    def search_product_by_name_memo(self, name: str):
+        # If this name is present in the memory, return with the value
+        if name in self.memoized_search:
+            return self.memoized_search[name]
+        result = [
+            product
+            for product in self.products.values()
+            if name.lower() in product.name.lower()
+        ]
+        # Store this value to cache
+        self.memoized_search[name] = result
+        return result
+
     # Search product by price range
+    def search_product_by_price_range_no_cache(
+        self, min_price: float, max_price: float
+    ):
+        return [
+            product
+            for product in self.products.values()
+            if min_price <= product.price <= max_price
+        ]
+
+    @lru_cache(maxsize=20000)  # Adding the cache
     def search_product_by_price_range(self, min_price: float, max_price: float):
         return [
             product
@@ -244,7 +322,31 @@ class Inventory:
             if min_price <= product.price <= max_price
         ]
 
+    # Manual cache memory search
+    def search_product_by_price_range_memo(self, min_price: float, max_price: float):
+        # Setup a unique key with min and max price
+        key = f"{min_price}-{max_price}"
+        # If this key is present, return value from memory
+        if key in self.memoized_search:
+            return self.memoized_search[key]
+        # Add this result to cache
+        result = [
+            product
+            for product in self.products.values()
+            if min_price <= product.price <= max_price
+        ]
+        self.memoized_search[key] = result
+        return result
+
     # Search product by category id
+    def search_product_by_category_id_no_cache(self, category_id: int):
+        return [
+            product
+            for product in self.products.values()
+            if product.category.category_id == category_id
+        ]
+
+    @lru_cache(maxsize=20000)  # Adding the cache
     def search_product_by_category_id(self, category_id: int):
         return [
             product
@@ -252,7 +354,30 @@ class Inventory:
             if product.category.category_id == category_id
         ]
 
+    # Manual memoization
+    def search_product_by_category_id_memo(self, category_id: int):
+        # Setup a unique key with category id
+        key = f"category-{category_id}"
+        if key in self.memoized_search:
+            return self.memoized_search[key]
+
+        result = [
+            product
+            for product in self.products.values()
+            if product.category.category_id == category_id
+        ]
+        self.memoized_search[key] = result
+        return result
+
     # Search product by category name
+    def search_product_by_category_name_no_cache(self, name: str):
+        return [
+            product
+            for product in self.products.values()
+            if name.lower() in product.category.name.lower()
+        ]
+
+    @lru_cache(maxsize=20000)  # Adding the cache
     def search_product_by_category_name(self, name: str):
         return [
             product
@@ -260,6 +385,362 @@ class Inventory:
             if name.lower() in product.category.name.lower()
         ]
 
+    # Manual
+    def search_product_by_category_name_memo(self, name: str):
+        # Setup a unique key with category name
+        key = f"product-category-{name}"
+        if key in self.memoized_search:
+            return self.memoized_search[key]
+        result = [
+            product
+            for product in self.products.values()
+            if name.lower() in product.category.name.lower()
+        ]
+        self.memoized_search[key] = result
+        return result
+
+    # A method to clear all cache
+    def clear_cache(self):
+        # Clearing all the manual cache
+        self.memoized_search.clear()
+        # Clearing all the automatic cache
+        self.search_category_by_name.cache_clear()
+        self.search_product_by_category_id.cache_clear()
+        self.search_product_by_category_name.cache_clear()
+        self.search_product_by_name.cache_clear()
+        self.search_product_by_price_range.cache_clear()
+
     # Finally a product to print the inventory class
     def __repr__(self):
         return f"Inventory Details \nCategories:{list(self.categories.values())}, \n\nProducts:{list(self.products.values())})"
+
+
+## ****************************** ##
+## Comprehensive Test Case
+## ****************************** ##
+## Initializing the inventory
+inventory = Inventory()
+print("******************************")
+print("*** Initializing Inventory ***")
+print("******************************")
+
+## Add in the product categories
+start = time.time()
+for i in range(0, 20000):
+    inventory.add_new_category(i, f"Category-{i}")
+end = time.time()
+print("\n******************************")
+print("Adding new category")
+print("******************************")
+print("20000 new categories are added")
+print(f"Execution time - {end-start} seconds")
+print("Current inventory category size", len(inventory.categories))
+print("******************************")
+
+
+# Adding in products
+start = time.time()
+for i in range(0, 100000):
+    inventory.add_product(
+        i,
+        f"Product-{i}",
+        random.uniform(1, 200),
+        "Simple Description",
+        random.randint(1, 10000),
+        random.randint(1, 1000),
+    )
+end = time.time()
+print("\n******************************")
+print("Adding new products")
+print("******************************")
+print("100000 new products are added")
+print(f"Execution time - {end-start} seconds")
+print("Current inventory products size", len(inventory.products))
+print("******************************")
+
+
+# Beginning stress testing
+# Storing the execution time for each search
+# Creating a test case method to conduct the test
+searchTimes = {
+    "categoryName": [],
+    "productName": [],
+    "priceRange": [],
+    "productByCategegoryName": [],
+    "productByCategegoryId": [],
+}
+automaticCacheSearchTimes = {
+    "categoryName": [],
+    "productName": [],
+    "priceRange": [],
+    "productByCategegoryName": [],
+    "productByCategegoryId": [],
+}
+manualCacheSearchTimes = {
+    "categoryName": [],
+    "productName": [],
+    "priceRange": [],
+    "productByCategegoryName": [],
+    "productByCategegoryId": [],
+}
+
+# For general conduct 100 tests
+for _ in range(100):
+    # First search criterias
+    search_category_name = f"Category-{random.randint(1,10000)}"
+    search_product_name = f"Product-{random.randint(1,10000)}"
+    search_min_price = random.uniform(1, 200)
+    search_max_price = random.uniform(1, 200)
+    search_category_id = random.randint(1, 10000)
+
+    # Measuring the time for each search functionality
+    # *******************************
+    # Searching category by name
+    # *******************************
+    start = time.time()
+    inventory.search_category_by_name_no_cache(search_category_name)
+    end = time.time()
+    searchTimes["categoryName"].append(end - start)
+    # Automatic cache
+    start = time.time()
+    inventory.search_category_by_name(search_category_name)
+    end = time.time()
+    automaticCacheSearchTimes["categoryName"].append(end - start)
+    # Manual Cache
+    start = time.time()
+    inventory.search_category_by_name_memo(search_category_name)
+    end = time.time()
+    manualCacheSearchTimes["categoryName"].append(end - start)
+
+    # *******************************
+    # Searching product by name
+    # *******************************
+    start = time.time()
+    inventory.search_product_by_name_no_cache(search_product_name)
+    end = time.time()
+    searchTimes["productName"].append(end - start)
+    # Automatic cache
+    start = time.time()
+    inventory.search_product_by_name(search_product_name)
+    end = time.time()
+    automaticCacheSearchTimes["productName"].append(end - start)
+    # Manual Cache
+    start = time.time()
+    inventory.search_product_by_name_memo(search_product_name)
+    end = time.time()
+    manualCacheSearchTimes["productName"].append(end - start)
+
+    # *******************************
+    # Searching product by price range
+    # *******************************
+    start = time.time()
+    inventory.search_product_by_price_range_no_cache(search_min_price, search_max_price)
+    end = time.time()
+    searchTimes["priceRange"].append(end - start)
+    # Automatic cache
+    start = time.time()
+    inventory.search_product_by_price_range(search_min_price, search_max_price)
+    end = time.time()
+    automaticCacheSearchTimes["priceRange"].append(end - start)
+    # Manual Cache
+    start = time.time()
+    inventory.search_product_by_price_range_memo(search_min_price, search_max_price)
+    end = time.time()
+    manualCacheSearchTimes["priceRange"].append(end - start)
+
+    # *******************************
+    # Searching prodcut by category id
+    # *******************************
+    start = time.time()
+    inventory.search_product_by_category_id_no_cache(search_category_id)
+    end = time.time()
+    searchTimes["productByCategegoryId"].append(end - start)
+    # Automatic cache
+    start = time.time()
+    inventory.search_product_by_category_id(search_category_id)
+    end = time.time()
+    automaticCacheSearchTimes["productByCategegoryId"].append(end - start)
+    # Manual Cache
+    start = time.time()
+    inventory.search_product_by_category_id_memo(search_category_id)
+    end = time.time()
+    manualCacheSearchTimes["productByCategegoryId"].append(end - start)
+
+    # *******************************
+    # Searching prodcut by category name
+    # *******************************
+    start = time.time()
+    inventory.search_product_by_category_name_no_cache(search_category_name)
+    end = time.time()
+    searchTimes["productByCategegoryName"].append(end - start)
+    # Automatic cache
+    start = time.time()
+    inventory.search_product_by_category_name(search_category_name)
+    end = time.time()
+    automaticCacheSearchTimes["productByCategegoryName"].append(end - start)
+    # Manual Cache
+    start = time.time()
+    inventory.search_product_by_category_name_memo(search_category_name)
+    end = time.time()
+    manualCacheSearchTimes["productByCategegoryName"].append(end - start)
+
+# Now plotting the graph to view the change
+# **************************************
+# Plotting search for category name
+# **************************************
+plt.figure(figsize=(12, 6))
+plt.plot(
+    searchTimes["categoryName"],
+    label="Regular Search by Category Name",
+    linestyle="--",
+    marker="o",
+)
+plt.plot(
+    automaticCacheSearchTimes["categoryName"],
+    label="LRU Search by Category Name",
+    linestyle="--",
+    marker="*",
+)
+plt.plot(
+    manualCacheSearchTimes["categoryName"],
+    label="Memoized Search by Category Name",
+    linestyle="-",
+    marker=".",
+)
+
+
+plt.xlabel("Test Number")
+plt.ylabel("Time (seconds)")
+plt.title("Category Search - Reguar vs LRU Cache vs. Manual Memoization Performance")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+# **************************************
+# Plotting search for product name
+# **************************************
+plt.figure(figsize=(12, 6))
+plt.plot(
+    searchTimes["productName"],
+    label="Regular Search by Product Name",
+    linestyle="--",
+    marker="o",
+)
+plt.plot(
+    automaticCacheSearchTimes["productName"],
+    label="LRU Search by Product Name",
+    linestyle="--",
+    marker="*",
+)
+plt.plot(
+    manualCacheSearchTimes["productName"],
+    label="Memoized Search by Product Name",
+    linestyle="-",
+    marker=".",
+)
+
+
+plt.xlabel("Test Number")
+plt.ylabel("Time (seconds)")
+plt.title("Product Search - Reguar vs LRU Cache vs. Manual Memoization Performance")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# **************************************
+# Plotting search for price range
+# **************************************
+plt.figure(figsize=(12, 6))
+plt.plot(
+    searchTimes["priceRange"],
+    label="Regular Search by price range",
+    linestyle="--",
+    marker="o",
+)
+plt.plot(
+    automaticCacheSearchTimes["priceRange"],
+    label="LRU Search by price range",
+    linestyle="--",
+    marker="*",
+)
+plt.plot(
+    manualCacheSearchTimes["priceRange"],
+    label="Memoized Search by price range",
+    linestyle="-",
+    marker=".",
+)
+
+
+plt.xlabel("Test Number")
+plt.ylabel("Time (seconds)")
+plt.title("Price Range Search - Reguar vs LRU Cache vs. Manual Memoization Performance")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# **************************************
+# Plotting search for product using category name
+# **************************************
+plt.figure(figsize=(12, 6))
+plt.plot(
+    searchTimes["productByCategegoryName"],
+    label="Product Search by category name",
+    linestyle="--",
+    marker="o",
+)
+plt.plot(
+    automaticCacheSearchTimes["productByCategegoryName"],
+    label="Product LRU Search by category name",
+    linestyle="--",
+    marker="*",
+)
+plt.plot(
+    manualCacheSearchTimes["productByCategegoryName"],
+    label="Product Memoized Search by category name",
+    linestyle="-",
+    marker=".",
+)
+
+
+plt.xlabel("Test Number")
+plt.ylabel("Time (seconds)")
+plt.title(
+    "Product Search by category name - Reguar vs LRU Cache vs. Manual Memoization Performance"
+)
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# **************************************
+# Plotting search for product using category Id
+# **************************************
+plt.figure(figsize=(12, 6))
+plt.plot(
+    searchTimes["productByCategegoryId"],
+    label="Product Search by category Id",
+    linestyle="--",
+    marker="o",
+)
+plt.plot(
+    automaticCacheSearchTimes["productByCategegoryId"],
+    label="Product LRU Search by category Id",
+    linestyle="--",
+    marker="*",
+)
+plt.plot(
+    manualCacheSearchTimes["productByCategegoryId"],
+    label="Product Memoized Search by category Id",
+    linestyle="-",
+    marker=".",
+)
+
+
+plt.xlabel("Test Number")
+plt.ylabel("Time (seconds)")
+plt.title(
+    "Product Search by category Id - Reguar vs LRU Cache vs. Manual Memoization Performance"
+)
+plt.legend()
+plt.grid(True)
+plt.show()
