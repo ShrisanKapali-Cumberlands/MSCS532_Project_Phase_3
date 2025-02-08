@@ -501,16 +501,22 @@ for _ in range(100):
     inventory.search_category_by_name_no_cache(search_category_name)
     end = time.time()
     searchTimes["categoryName"].append(end - start)
+    # print(search_category_name)
+    # print(inventory.search_category_by_name_no_cache(search_category_name))
     # Automatic cache
     start = time.time()
     inventory.search_category_by_name(search_category_name)
     end = time.time()
     automaticCacheSearchTimes["categoryName"].append(end - start)
+    # print(search_category_name)
+    # print(inventory.search_category_by_name(search_category_name))
     # Manual Cache
     start = time.time()
     inventory.search_category_by_name_memo(search_category_name)
     end = time.time()
     manualCacheSearchTimes["categoryName"].append(end - start)
+    # print(search_category_name)
+    # print(inventory.search_category_by_name_memo(search_category_name))
 
     # *******************************
     # Searching product by name
